@@ -1,6 +1,6 @@
 Disclaimer: ModLoader is not my property; this software is only intended to provide a more convenient and updated way to manage ModLoader mods. All credits belong to the original creator (s)
 
-NFS Garage is a lightweight mod manager for Need for Speed games using **ModLoader**.  
+NFS Garage is a lightweight mod manager for Need for Speed Most Wanted using **ModLoader**.  
 It lets you import mods, manage them, and launch the game easily from one simple interface.
 
 ---
