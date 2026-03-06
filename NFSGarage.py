@@ -68,9 +68,61 @@ class Star:
             self.x = random.uniform(0, width)
 
 
+class LanguageSelectDialog(QDialog):
+    """Pantalla inicial de selección de idioma."""
+    def __init__(self):
+        super().__init__()
+        self.selected_lang = "EN"
+        self.setWindowTitle("NFS Garage")
+        self.setFixedSize(400, 260)
+        self.setWindowFlags(Qt.WindowType.Window | Qt.WindowType.MSWindowsFixedSizeDialogHint)
+        self.setStyleSheet("QWidget { background-color: #050A14; }")
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(50, 40, 50, 40)
+        layout.setSpacing(20)
+
+        title = QLabel("NFS GARAGE")
+        title.setStyleSheet("color: #4A90E2; font-size: 22px; font-weight: bold; letter-spacing: 4px;")
+        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(title)
+
+        sub = QLabel("Select your language / Seleccione su idioma")
+        sub.setStyleSheet("color: rgba(255,255,255,0.4); font-size: 10px;")
+        sub.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(sub)
+
+        layout.addStretch()
+
+        btn_style = """
+            QPushButton {
+                background: rgba(74,144,226,0.05); color: #4A90E2;
+                border: 1px solid rgba(74,144,226,0.3); border-radius: 4px;
+                font-size: 13px; font-weight: bold; min-height: 42px;
+            }
+            QPushButton:hover { background: #4A90E2; color: white; border-color: #4A90E2; }
+        """
+        btn_en = QPushButton("English")
+        btn_en.setStyleSheet(btn_style)
+        btn_en.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_en.clicked.connect(lambda: self._pick("EN"))
+
+        btn_es = QPushButton("Español")
+        btn_es.setStyleSheet(btn_style)
+        btn_es.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_es.clicked.connect(lambda: self._pick("ES"))
+
+        layout.addWidget(btn_en)
+        layout.addWidget(btn_es)
+
+    def _pick(self, lang):
+        self.selected_lang = lang
+        self.accept()
+
+
 class ModPreviewDialog(QDialog):
     """Ventana de vista previa antes de instalar el mod."""
-    def __init__(self, parent, car_name, bin_labels, lang):
+    def __init__(self, parent, car_name, bin_labels, lang, will_replace=False):
         super().__init__(parent)
         self.setWindowTitle("MOD PREVIEW" if lang == "EN" else "VISTA PREVIA")
         self.setFixedSize(460, 300)
@@ -102,6 +154,13 @@ class ModPreviewDialog(QDialog):
         car_color = "#FFFFFF" if car_name != "Not detected" else "rgba(255,255,255,0.3)"
         lbl_car.setStyleSheet(f"color: {car_color}; font-size: 14px; font-weight: bold;")
         layout.addWidget(lbl_car)
+
+        # Aviso de sustitución
+        if will_replace:
+            lbl_warn = QLabel("⚠  " + ("This mod will replace an existing installation" if lang == "EN" else "Este mod reemplazará una instalación existente"))
+            lbl_warn.setStyleSheet("color: #E67E22; font-size: 9px; font-weight: bold; margin-top: 2px;")
+            lbl_warn.setWordWrap(True)
+            layout.addWidget(lbl_warn)
 
         # BINs
         lbl_bin_title = QLabel("MANUFACTURER BIN:" if lang == "EN" else "BIN DE FABRICANTE:")
@@ -149,9 +208,10 @@ class ModPreviewDialog(QDialog):
 
 
 class ModLoaderGUI(QWidget):
-    def __init__(self):
+    def __init__(self, initial_lang="EN"):
         if not self.is_admin():
-            ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, " ".join(sys.argv), None, 1)
+            args = " ".join(sys.argv) + f" --lang={initial_lang}"
+            ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, args, None, 1)
             sys.exit()
 
         super().__init__()
@@ -161,7 +221,7 @@ class ModLoaderGUI(QWidget):
         if os.path.exists(icon_path):
             self.setWindowIcon(QIcon(icon_path))
 
-        self.lang = "EN"
+        self.lang = initial_lang
         self.texts = {
             "EN": {
                 "title": "NFS Garage",
@@ -181,12 +241,16 @@ class ModLoaderGUI(QWidget):
                 "success_ml": "ModLoader installed correctly.",
                 "mod_installed": "Mod installed",
                 "no_content": "No valid content detected.",
-                "confirm_del": "Permanently delete"
+                "confirm_del": "Permanently delete",
+                "mod_replaced": "This mod will replace an existing installation",
+                "how_to_use": "How to use?",
+                "welcome": "WELCOME",
+                "how_to_use_steps": "1. INSTALL MODLOADER\nInstalls the files needed for the game to load mods. Only done once.\n\n2. IMPORT MOD (FOLDER / RAR)\nSelect the mod folder or archive. The app detects content and installs automatically.\n\n3. MOD PREVIEW\nBefore installing you will see a preview with the folder name and detected BINs. Confirm or cancel.\n\n4. LIBRARY\nView all installed mods. Enable or disable them with ON/OFF without deleting, or remove permanently.\n\n5. MOD HISTORY\nThe left panel keeps a record of all imported mods with their name and BINs. Delete entries individually or clear all.\n\n6. MODS FOLDER\nOpens the game ADDONS folder directly so you can inspect files manually.\n\n7. LAUNCH GAME\nLaunches NFS Most Wanted directly from the app."
             },
             "ES": {
                 "title": "NFS Garage",
-                "install_ml": "INSTALAR MODMANAGER",
-                "active_ml": "MODMANAGER ACTIVO",
+                "install_ml": "INSTALAR MODLOADER",
+                "active_ml": "MODLOADER ACTIVO",
                 "import": "IMPORTAR CARPETA",
                 "import_rar": "IMPORTAR RAR",
                 "library": "BIBLIOTECA",
@@ -201,7 +265,11 @@ class ModLoaderGUI(QWidget):
                 "success_ml": "ModLoader instalado correctamente.",
                 "mod_installed": "Mod instalado",
                 "no_content": "No se detectó contenido válido.",
-                "confirm_del": "¿Eliminar permanentemente"
+                "confirm_del": "¿Eliminar permanentemente",
+                "mod_replaced": "Este mod reemplazará una instalación existente",
+                "how_to_use": "¿Cómo usar?",
+                "welcome": "BIENVENIDO",
+                "how_to_use_steps": "1. INSTALAR MODLOADER\nInstala los archivos necesarios para que el juego cargue mods. Solo se hace una vez.\n\n2. IMPORTAR MOD (CARPETA / RAR)\nSeleccione la carpeta o archivo comprimido. La app detecta el contenido e instala automáticamente.\n\n3. VISTA PREVIA\nAntes de instalar verá una pantalla con el nombre de la carpeta y los BINs detectados. Confirme o cancele.\n\n4. BIBLIOTECA\nVea todos sus mods instalados. Actívelos o desactívelos con ON/OFF sin borrarlos, o elimínelos permanentemente.\n\n5. HISTORIAL DE MODS\nEl panel lateral guarda un registro de todos los mods importados con su nombre y BINs. Borre entradas o limpie todo.\n\n6. CARPETA DE MODS\nAbre la carpeta ADDONS del juego directamente para inspeccionar archivos manualmente.\n\n7. INICIAR JUEGO\nLanza NFS Most Wanted directamente desde la app."
             }
         }
 
@@ -305,7 +373,7 @@ class ModLoaderGUI(QWidget):
         self.btn_menu.setStyleSheet("QPushButton { color: white; font-size: 24px; background: transparent; border: none; } QPushButton:hover { color: #4A90E2; }")
         self.btn_menu.clicked.connect(self.toggle_side_menu)
 
-        self.btn_lang = QPushButton("EN")
+        self.btn_lang = QPushButton(self.lang)
         self.btn_lang.setFixedSize(45, 30)
         self.btn_lang.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_lang.setStyleSheet("""
@@ -426,6 +494,115 @@ class ModLoaderGUI(QWidget):
 
         self.update_ui_texts()
 
+        # ── Botón How to Use — esquina inferior derecha — siempre visible ──
+        self.btn_how = QPushButton(self)
+        self.btn_how.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_how.setStyleSheet("""
+            QPushButton {
+                color: rgba(255,255,255,0.4);
+                background: transparent;
+                border: none;
+                font-size: 11px;
+                text-decoration: underline;
+                font-family: Georgia, serif;
+            }
+            QPushButton:hover { color: white; }
+        """)
+        self.btn_how.move(self.width() - 130, self.height() - 35)
+        self.btn_how.resize(120, 25)
+        self.btn_how.setText(self.texts[self.lang]["how_to_use"])
+        self.btn_how.clicked.connect(self.show_how_to_use)
+        self.btn_how.show()
+        self.btn_how.raise_()
+
+        # ── Welcome panel con esquina redondeada ─────────────────────────
+        self.welcome_panel = QFrame(self)
+        self.welcome_panel.setFixedSize(220, 55)
+        px = (self.width() - 220) // 2
+        py = (self.height() - 55) // 2
+        self.welcome_panel.move(px, py)
+        self.welcome_panel.setStyleSheet("""
+            QFrame {
+                background-color: rgba(5, 8, 18, 0.92);
+                border-radius: 14px;
+                border: 1px solid rgba(74,144,226,0.15);
+            }
+        """)
+        lbl_w = QLabel(self.welcome_panel)
+        lbl_w.setGeometry(0, 0, 220, 55)
+        lbl_w.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        lbl_w.setStyleSheet("""
+            color: white;
+            font-size: 15px;
+            font-family: Georgia, serif;
+            letter-spacing: 4px;
+            background: transparent;
+            border: none;
+        """)
+        lbl_w.setText(self.texts[self.lang]["welcome"])
+        self.welcome_panel.raise_()
+        self._welcome_opacity = 255
+        QTimer.singleShot(1000, self._start_welcome_fade)
+
+    def _start_welcome_fade(self):
+        self._fade_timer = QTimer()
+        self._fade_timer.timeout.connect(self._fade_welcome)
+        self._fade_timer.start(30)
+
+    def _fade_welcome(self):
+        self._welcome_opacity -= 4
+        if self._welcome_opacity <= 0:
+            self._fade_timer.stop()
+            self.welcome_panel.hide()
+        else:
+            alpha_panel = int(self._welcome_opacity * 0.92 / 255 * 100) / 100
+            self.welcome_panel.setStyleSheet(f"""
+                QFrame {{
+                    background-color: rgba(5, 8, 18, {alpha_panel});
+                    border-radius: 14px;
+                    border: 1px solid rgba(74,144,226,{alpha_panel * 0.15:.2f});
+                }}
+            """)
+            lbl = self.welcome_panel.findChild(QLabel)
+            if lbl:
+                lbl.setStyleSheet(f"""
+                    color: rgba(255,255,255,{self._welcome_opacity});
+                    font-size: 15px;
+                    font-family: Georgia, serif;
+                    letter-spacing: 4px;
+                    background: transparent;
+                    border: none;
+                """)
+
+    def show_how_to_use(self):
+        dlg = QDialog(self)
+        dlg.setWindowTitle("How to use" if self.lang == "EN" else "Cómo usar")
+        dlg.setFixedSize(500, 560)
+        dlg.setWindowFlags(Qt.WindowType.Window | Qt.WindowType.WindowCloseButtonHint | Qt.WindowType.MSWindowsFixedSizeDialogHint)
+        dlg.setStyleSheet("QDialog { background-color: #050A14; }")
+        lay = QVBoxLayout(dlg)
+        lay.setContentsMargins(35, 30, 35, 30)
+
+        title = QLabel("HOW TO USE" if self.lang == "EN" else "CÓMO USAR")
+        title.setStyleSheet("color: #4A90E2; font-size: 14px; font-weight: bold; letter-spacing: 2px;")
+        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        lay.addWidget(title)
+
+        sep = QFrame()
+        sep.setFrameShape(QFrame.Shape.HLine)
+        sep.setStyleSheet("background: rgba(74,144,226,0.3); border: none; margin: 8px 0;")
+        sep.setFixedHeight(1)
+        lay.addWidget(sep)
+
+        steps = QLabel(self.texts[self.lang]["how_to_use_steps"])
+        steps.setStyleSheet("color: rgba(255,255,255,0.85); font-size: 11px; line-height: 1.6;")
+        steps.setWordWrap(True)
+        steps.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        lay.addWidget(steps)
+
+        lay.addStretch()
+        dlg.exec()
+
     # ── Idioma ───────────────────────────────────────────────────────────
 
     def toggle_language(self):
@@ -443,6 +620,8 @@ class ModLoaderGUI(QWidget):
         self.btn_launch.setText(t["launch"])
         self.lbl_h_title.setText(t["history_title"])
         self.btn_clear.setText(t["clear_hist"])
+        if hasattr(self, "btn_how"):
+            self.btn_how.setText(t["how_to_use"])
 
     # ── ModLoader ────────────────────────────────────────────────────────
 
@@ -489,7 +668,7 @@ class ModLoaderGUI(QWidget):
 
     def select_rar(self):
         """Selecciona un archivo comprimido y lo instala automáticamente."""
-        title = "Select MOD Archive" if self.lang == "EN" else "Seleccione el archivo del MOD"
+        title = "Select mod Archive" if self.lang == "EN" else "Seleccione el archivo del mod"
         path, _ = QFileDialog.getOpenFileName(
             self, title, "",
             "Compressed files (*.rar *.zip *.7z)"
@@ -509,7 +688,7 @@ class ModLoaderGUI(QWidget):
                     shutil.rmtree(temp_dir)
 
     def select_file(self):
-        title = "Select MOD Folder" if self.lang == "EN" else "Seleccione la carpeta del MOD"
+        title = "Select mod Folder" if self.lang == "EN" else "Seleccione la carpeta del mod"
         path = QFileDialog.getExistingDirectory(self, title)
         if path:
             self.import_logic(path, "folder")
@@ -593,7 +772,9 @@ class ModLoaderGUI(QWidget):
                 bin_labels = ", ".join(os.path.basename(x) for x in bins_to_move) if bins_to_move else "None"
 
                 # ── Vista previa antes de instalar ───────────────────────
-                preview = ModPreviewDialog(self, car_name, bin_labels, self.lang)
+                _dest_check = os.path.join(self.addons_path, "CARS_REPLACE", car_name)
+                _will_replace = os.path.exists(_dest_check)
+                preview = ModPreviewDialog(self, car_name, bin_labels, self.lang, _will_replace)
                 if not preview.exec():
                     return  # Usuario canceló
 
@@ -696,7 +877,7 @@ class ModLoaderGUI(QWidget):
             layout_bib.setContentsMargins(30, 30, 30, 30)
             layout_bib.setSpacing(10)
 
-            title_lib = QLabel("GARAGE REPOSITORY")
+            title_lib = QLabel("GARAGE REPOSITORY" if self.lang == "EN" else "REPOSITORIO")
             title_lib.setStyleSheet("color: #4A90E2; font-size: 16px; font-weight: bold; letter-spacing: 2px; margin-bottom: 20px;")
             title_lib.setAlignment(Qt.AlignmentFlag.AlignCenter)
             layout_bib.addWidget(title_lib)
@@ -865,9 +1046,20 @@ class ModLoaderGUI(QWidget):
 if __name__ == "__main__":
     try:
         app = QApplication(sys.argv)
-        gui = ModLoaderGUI()
+        # Si ya viene el idioma como argumento (relanzado como admin), usarlo directo
+        selected_lang = "EN"
+        for arg in sys.argv[1:]:
+            if arg.startswith("--lang="):
+                selected_lang = arg.split("=")[1]
+                break
+        else:
+            # Primera vez — mostrar selección de idioma
+            lang_dialog = LanguageSelectDialog()
+            if not lang_dialog.exec():
+                sys.exit(0)
+            selected_lang = lang_dialog.selected_lang
+        gui = ModLoaderGUI(initial_lang=selected_lang)
         gui.show()
         sys.exit(app.exec())
     except Exception as e:
         ctypes.windll.user32.MessageBoxW(0, f"Error Crítico: {str(e)}", "NFS Garage Crash", 0x10)
-
